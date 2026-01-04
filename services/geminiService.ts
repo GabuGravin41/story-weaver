@@ -1,12 +1,14 @@
 
-import { GoogleGenAI, Schema } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import { Story, Citation, Source } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAIClient = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API_KEY environment variable not set. Ensure it is added to your Vercel Environment Variables.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 interface GeminiResult {
   text: string;
@@ -64,6 +66,7 @@ function parseMultipleStoriesFromText(text: string): Story[] {
 
 export const getQuickAnswer = async (prompt: string): Promise<GeminiResult> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `You are a master librarian and storyteller.
@@ -83,7 +86,7 @@ export const getQuickAnswer = async (prompt: string): Promise<GeminiResult> => {
       },
     });
 
-    const text = response.text;
+    const text = response.text || "";
     const stories = parseMultipleStoriesFromText(text);
 
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
@@ -97,12 +100,13 @@ export const getQuickAnswer = async (prompt: string): Promise<GeminiResult> => {
     return { text, stories, sources: sources.length > 0 ? sources : undefined };
   } catch (error) {
     console.error("Error fetching quick answer:", error);
-    return { text: "I'm sorry, I encountered an error while searching for that story." };
+    return { text: "I'm sorry, I encountered an error while searching for that story. Please check your API configuration." };
   }
 };
 
 export const getDeepAnalysis = async (prompt: string): Promise<GeminiResult> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: `You are a literary scholar and mythologist. Unearth profound, obscure stories from world literature based on this request: "${prompt}". 
@@ -118,7 +122,7 @@ Separate each story with "---" and use the format:
       },
     });
 
-    const text = response.text;
+    const text = response.text || "";
     const stories = parseMultipleStoriesFromText(text);
     return { text, stories };
   } catch (error) {
@@ -130,6 +134,7 @@ Separate each story with "---" and use the format:
 
 export const getCreativeCollab = async (prompt: string): Promise<GeminiResult> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: `You are an insightful and collaborative literary analyst. Partner with the user to explore: "${prompt}"`,
@@ -138,7 +143,7 @@ export const getCreativeCollab = async (prompt: string): Promise<GeminiResult> =
       },
     });
 
-    return { text: response.text };
+    return { text: response.text || "" };
   } catch (error) {
     console.error("Error fetching creative collab response:", error);
     return { text: "I'm sorry, I had trouble formulating a response." };
@@ -147,6 +152,7 @@ export const getCreativeCollab = async (prompt: string): Promise<GeminiResult> =
 
 export const transcribeUserAudio = async (audioBase64: string, mimeType: string): Promise<string> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: {
@@ -165,6 +171,7 @@ export const transcribeUserAudio = async (audioBase64: string, mimeType: string)
 
 export const consultScriptorium = async (currentText: string, instruction: string): Promise<string> => {
   try {
+    const ai = getAIClient();
     const response = await ai.models.generateContent({
       model: "gemini-3-pro-preview",
       contents: `You are an intellectual partner in a Scriptorium. 
